@@ -1,0 +1,37 @@
+# requirements.txt
+# AdaptLab — Python dependencies
+# Install with: pip install -r requirements.txt
+# Python 3.11+ required
+
+# ── Web framework ──────────────────────────────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+
+# ── Database ───────────────────────────────────────────────────────────────
+sqlalchemy==2.0.30
+
+# ── Pydantic (FastAPI's validation layer) ──────────────────────────────────
+pydantic==2.7.1
+pydantic-settings==2.2.1
+
+# ── HTTP client (Ollama calls from Brain A + Brain B) ──────────────────────
+requests==2.32.2
+
+# ── AST / Code analysis ────────────────────────────────────────────────────
+# tree-sitter for structural code analysis (feature_extractor.py)
+tree-sitter==0.21.3
+tree-sitter-python==0.21.0
+
+# ── Environment variables ──────────────────────────────────────────────────
+python-dotenv==1.0.1
+
+# ── Structured logging ─────────────────────────────────────────────────────
+structlog==24.1.0
+
+# ── Subprocess / sandbox (executor.py uses stdlib only) ───────────────────
+# No extra deps needed — subprocess, resource, signal are stdlib
+
+# ── Dev / testing ──────────────────────────────────────────────────────────
+pytest==8.2.0
+pytest-asyncio==0.23.6
+httpx==0.27.0          # for FastAPI TestClient async support
