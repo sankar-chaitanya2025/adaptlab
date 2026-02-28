@@ -149,3 +149,11 @@ CONCEPT_PREREQUISITES: dict[str, str] = {
     "trees":          "recursion",
     "variables":      "variables",   # root concept, no further fallback
 }
+
+# ─────────────────────────────────────────────
+# SERVER CONFIGURATION
+# ─────────────────────────────────────────────
+
+SERVER_HOST: str = "0.0.0.0"
+SERVER_PORT: int = 8000
+

@@ -58,6 +58,44 @@ def _get_student_or_404(student_id: str, db: Session) -> Student:
 
 
 # ─────────────────────────────────────────────
+# POST /student/register
+# ─────────────────────────────────────────────
+
+from pydantic import BaseModel, Field
+
+
+class StudentRegisterRequest(BaseModel):
+    student_id: str = Field(..., min_length=1, max_length=64)
+    name:       str = Field(..., min_length=1, max_length=200)
+    email:      str = Field(..., min_length=3, max_length=200)
+
+
+@router.post(
+    "/student/register",
+    summary="Register a new student",
+)
+def register_student(
+    body: StudentRegisterRequest,
+    db:   Session = Depends(get_db),
+) -> dict:
+    """Create a new student. Returns 409 if student_id already exists."""
+    existing = db.query(Student).filter(Student.student_id == body.student_id).first()
+    if existing:
+        raise HTTPException(status_code=409, detail=f"Student '{body.student_id}' already exists.")
+
+    student = Student(
+        student_id=body.student_id,
+        name=body.name,
+        email=body.email,
+    )
+    db.add(student)
+    db.commit()
+
+    log.info("student_registered", student_id=body.student_id)
+    return {"student_id": body.student_id, "name": body.name, "registered": True}
+
+
+# ─────────────────────────────────────────────
 # GET /student/{student_id}/profile
 # ─────────────────────────────────────────────
 

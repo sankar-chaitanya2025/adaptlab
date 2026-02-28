@@ -44,6 +44,11 @@ class CodeFeatures:
     #           hardcoded_values > generalization_failure >
     #           approach_mismatch > none
 
+    def to_dict(self) -> dict:
+        """Convert to dict for consumption by brain_a, brain_b, and routes_submit."""
+        from dataclasses import asdict
+        return asdict(self)
+
 
 # ─────────────────────────────────────────────
 # AST visitor

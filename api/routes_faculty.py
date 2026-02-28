@@ -181,13 +181,6 @@ def faculty_class_overview(db: Session = Depends(get_db)) -> ClassOverviewRespon
 
     all_students: list[Student] = db.query(Student).all()
 
-    # Build submission counts per student in bulk
-    sub_count_rows = (
-        db.query(Submission.student_id,
-                 db.query(Submission).filter(Submission.student_id == Submission.student_id).count)
-        .all()
-    )
-
     # Bulk fetch submission counts
     from sqlalchemy import func
     sub_counts: dict[str, int] = {

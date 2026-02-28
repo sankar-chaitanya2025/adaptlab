@@ -36,6 +36,10 @@ class ExecutionResult:
     stderr:             str
     visible_results:    list = field(default_factory=list)
     # [{input, expected, got, passed}] — visible only, hidden never included
+    test_outputs:       list = field(default_factory=list)
+    # All test case stdout strings in order (visible + hidden)
+    test_results:       list = field(default_factory=list)
+    # All test case pass/fail booleans in order (visible + hidden)
 
 
 # ─────────────────────────────────────────────
@@ -44,13 +48,16 @@ class ExecutionResult:
 
 def _make_preexec(memory_mb: int):
     """Returns a preexec_fn that sets virtual memory limit via resource module."""
+    import platform
+    if platform.system() == "Windows":
+        return None   # preexec_fn is not supported on Windows
     def _set_limits():
         try:
             import resource
             limit_bytes = memory_mb * 1024 * 1024
             resource.setrlimit(resource.RLIMIT_AS, (limit_bytes, limit_bytes))
         except Exception:
-            pass  # Windows / unsupported — skip silently
+            pass  # unsupported — skip silently
     return _set_limits
 
 
@@ -69,13 +76,18 @@ def _run_single(
     """
     start = time.monotonic()
     try:
-        result = subprocess.run(
-            [sys.executable, code_file],
+        preexec = _make_preexec(memory_mb)
+        run_kwargs = dict(
             input=stdin_data,
             capture_output=True,
             text=True,
             timeout=timeout_sec,
-            preexec_fn=_make_preexec(memory_mb),
+        )
+        if preexec is not None:
+            run_kwargs["preexec_fn"] = preexec
+        result = subprocess.run(
+            [sys.executable, code_file],
+            **run_kwargs,
         )
         elapsed_ms = int((time.monotonic() - start) * 1000)
         runtime_err = result.returncode != 0
@@ -148,6 +160,8 @@ def run_code(
         passed_hidden   = 0
         total_hidden    = 0
         visible_results = []
+        all_test_outputs  = []    # stdout for every test case in order
+        all_test_results  = []    # pass/fail for every test case in order
         total_elapsed   = 0
         timed_out       = False
         had_runtime_err = False
@@ -175,6 +189,10 @@ def run_code(
 
             got     = stdout.strip()
             passed  = (got == expected) and not tc_timeout and not tc_runtime_err
+
+            # Track ALL test case results in order (visible + hidden)
+            all_test_outputs.append(got if not tc_timeout else "<timeout>")
+            all_test_results.append(passed)
 
             if is_hidden:
                 total_hidden += 1
@@ -224,6 +242,8 @@ def run_code(
             execution_time_ms=total_elapsed,
             stderr=last_stderr[:500],     # cap stderr to avoid bloat
             visible_results=visible_results,
+            test_outputs=all_test_outputs,
+            test_results=all_test_results,
         )
 
     finally:

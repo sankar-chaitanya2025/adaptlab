@@ -238,3 +238,58 @@ def get_weakest_concept(student_id: str, db: Session) -> Optional[str]:
         .first()
     )
     return record.concept if record else None
+
+
+# ─────────────────────────────────────────────
+# Single-concept wrapper — used by routes_submit.py
+# ─────────────────────────────────────────────
+
+@dataclass
+class CapabilityUpdate:
+    """Simplified result for single-concept update used by routes_submit.py."""
+    concept:    str
+    old_score:  float
+    new_score:  float
+
+
+def update_capability(
+    student_id:     str,
+    concept:        str,
+    pass_rate:      float,
+    compiled:       bool,
+    timeout:        bool,
+    runtime_error:  bool,
+    error_type:     str,
+    db:             Session,
+) -> CapabilityUpdate:
+    """
+    Single-concept capability update.
+    Wraps update_capability_scores for the routes_submit.py call pattern.
+    Returns CapabilityUpdate with concept, old_score, new_score.
+    """
+    result = update_capability_scores(
+        student_id=student_id,
+        concept_tags=[concept],
+        error_type=error_type,
+        pass_rate=pass_rate,
+        compiled=compiled,
+        timeout=timeout,
+        runtime_error=runtime_error,
+        db=db,
+    )
+
+    if concept in result.updates:
+        return CapabilityUpdate(
+            concept=concept,
+            old_score=result.updates[concept]["old_score"],
+            new_score=result.updates[concept]["new_score"],
+        )
+    else:
+        # Shouldn't happen, but safe fallback
+        score = get_capability_score(student_id, concept, db)
+        return CapabilityUpdate(
+            concept=concept,
+            old_score=score,
+            new_score=score,
+        )
+

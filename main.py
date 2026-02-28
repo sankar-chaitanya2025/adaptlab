@@ -1,7 +1,7 @@
 # main.py
 # AdaptLab — FastAPI application entry point.
 # Registers all routers. Runs DB init + seed on startup.
-# Imports from: api/routes_*.py, database/db.py, database/seed.py, utils/logger.py
+# Imports from: api/routes_*.py, database/db.py, utils/logger.py
 
 from contextlib import asynccontextmanager
 
@@ -12,8 +12,7 @@ from api.routes_faculty import router as faculty_router
 from api.routes_problems import router as problems_router
 from api.routes_student import router as student_router
 from api.routes_submit import router as submit_router
-from database.db import create_tables
-from database.seed import seed_problems
+from database.db import init_db
 from utils.logger import get_logger
 
 log = get_logger("main")
@@ -35,21 +34,11 @@ async def lifespan(app: FastAPI):
     log.info("adaptlab_startup_begin")
 
     try:
-        create_tables()
-        log.info("db_tables_created")
+        init_db()
+        log.info("db_init_complete")
     except Exception as exc:
         log.exception("db_init_failed", error=str(exc))
         raise
-
-    try:
-        seeded = seed_problems()
-        if seeded:
-            log.info("db_seed_complete")
-        else:
-            log.info("db_seed_skipped", reason="problem bank already populated")
-    except Exception as exc:
-        log.exception("db_seed_failed", error=str(exc))
-        # Non-fatal — server can still run with existing data
 
     log.info("adaptlab_startup_complete")
     yield

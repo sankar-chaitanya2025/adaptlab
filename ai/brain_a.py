@@ -27,13 +27,15 @@ log = get_logger("ai.brain_a")
 
 @dataclass
 class BrainAInput:
-    problem_concept:    str
-    problem_difficulty: str
+    student_code:       str
+    problem_statement:  str
     pass_rate:          float
+    visible_pass_rate:  float
+    hidden_pass_rate:   float
+    compiled:           bool
     error_type:         str
-    features:           dict                # CodeFeatures as dict
-    student_capability: float
-    attempt_number:     int
+    code_features:      dict                # CodeFeatures as dict
+    test_failures:      list                # [{input, expected, got, passed}]
 
 
 @dataclass
@@ -82,24 +84,30 @@ _SAFE_DEFAULTS = BrainAOutput(
 def _build_prompt(inp: BrainAInput) -> str:
     """
     Builds the user-turn message. Provides all structured context
-    Brain A needs to generate targeted feedback without seeing the code.
+    Brain A needs to generate targeted feedback.
     """
+    # Truncate student code to avoid token overflow on 1.5B model
+    code_snippet = inp.student_code[:1500] if len(inp.student_code) > 1500 else inp.student_code
+
+    # Include at most 3 visible test failures for brevity
+    failures = [f for f in inp.test_failures if not f.get("passed", True)][:3]
+
     return json.dumps({
-        "concept":            inp.problem_concept,
-        "difficulty":         inp.problem_difficulty,
+        "problem_statement":  inp.problem_statement[:400],
+        "student_code":       code_snippet,
         "pass_rate":          inp.pass_rate,
+        "compiled":           inp.compiled,
         "error_type":         inp.error_type,
-        "attempt_number":     inp.attempt_number,
-        "student_capability": round(inp.student_capability, 3),
+        "test_failures":      failures,
         "features": {
-            "uses_recursion":         inp.features.get("uses_recursion", False),
-            "nested_loops":           inp.features.get("nested_loops", False),
-            "loop_count":             inp.features.get("loop_count", 0),
-            "complexity_estimate":    inp.features.get("complexity_estimate", "unknown"),
-            "hardcoded_values":       inp.features.get("hardcoded_values", False),
-            "missing_base_case":      inp.features.get("missing_base_case", False),
-            "off_by_one_risk":        inp.features.get("off_by_one_risk", False),
-            "brute_force_detected":   inp.features.get("brute_force_detected", False),
+            "uses_recursion":         inp.code_features.get("uses_recursion", False),
+            "nested_loops":           inp.code_features.get("nested_loops", False),
+            "loop_count":             inp.code_features.get("loop_count", 0),
+            "complexity_estimate":    inp.code_features.get("complexity_estimate", "unknown"),
+            "hardcoded_values":       inp.code_features.get("hardcoded_values", False),
+            "missing_base_case":      inp.code_features.get("missing_base_case", False),
+            "off_by_one_risk":        inp.code_features.get("off_by_one_risk", False),
+            "brute_force_detected":   inp.code_features.get("brute_force_detected", False),
         },
     }, indent=2)
 
@@ -233,11 +241,9 @@ def get_feedback(inp: BrainAInput) -> BrainAOutput:
 
     log.info(
         "brain_a_call_start",
-        concept=inp.problem_concept,
-        difficulty=inp.problem_difficulty,
         pass_rate=inp.pass_rate,
+        compiled=inp.compiled,
         error_type=inp.error_type,
-        attempt=inp.attempt_number,
     )
 
     raw, error = _call_ollama(prompt)

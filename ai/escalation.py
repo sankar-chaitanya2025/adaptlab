@@ -111,7 +111,8 @@ def _log_escalation(
         logged_at=datetime.now(timezone.utc),
     )
     db.add(entry)
-    db.flush()
+    # No flush here — submission row may not exist yet.
+    # Will be committed in routes_submit.py after _persist_submission.
 
     log.info(
         "escalation_logged",

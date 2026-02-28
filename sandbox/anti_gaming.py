@@ -249,3 +249,65 @@ def _hash_code(code: str) -> str:
     """
     normalised = code.strip()
     return hashlib.sha256(normalised.encode("utf-8")).hexdigest()
+
+
+# ─────────────────────────────────────────────
+# 5. Unified interface (used by routes_submit.py)
+# ─────────────────────────────────────────────
+
+@dataclass
+class AntiGamingResult:
+    """Combined anti-gaming result wrapping both hardcoding + rapid resubmit."""
+    flagged:                    bool
+    reason:                     Optional[str]   # 'visible_only_pass' | 'suspicious_gap' | 'rapid_resubmit' | None
+    cooldown_active:            bool
+    cooldown_seconds_remaining: int
+    capped_score:               Optional[float]
+
+
+def check_anti_gaming(
+    student_id:         str,
+    current_code:       str,
+    db:                 Session,
+    problem_id:         str = "",
+    visible_pass_rate:  Optional[float] = None,
+    hidden_pass_rate:   Optional[float] = None,
+) -> AntiGamingResult:
+    """
+    Unified anti-gaming check used by routes_submit.py.
+
+    Pre-execution call (visible_pass_rate is None):
+        Checks rapid resubmit only.
+
+    Post-execution call (visible_pass_rate provided):
+        Checks hardcoding detection only.
+    """
+    # ── Pre-execution: rapid resubmit check ───
+    if visible_pass_rate is None:
+        rapid = check_rapid_resubmit(
+            student_id=student_id,
+            problem_id=problem_id,
+            current_code=current_code,
+            db=db,
+        )
+        return AntiGamingResult(
+            flagged=rapid.flagged,
+            reason=rapid.reason,
+            cooldown_active=rapid.cooldown_active,
+            cooldown_seconds_remaining=rapid.cooldown_seconds_remaining,
+            capped_score=None,
+        )
+
+    # ── Post-execution: hardcoding check ──────
+    hc = check_hardcoding(
+        visible_pass_rate=visible_pass_rate,
+        hidden_pass_rate=hidden_pass_rate,
+    )
+    return AntiGamingResult(
+        flagged=hc.flagged,
+        reason=hc.reason,
+        cooldown_active=False,
+        cooldown_seconds_remaining=0,
+        capped_score=hc.capped_score,
+    )
+

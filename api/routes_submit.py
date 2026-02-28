@@ -223,6 +223,7 @@ def submit_code(
         student_id=body.student_id,
         current_code=body.code,
         db=db,
+        problem_id=body.problem_id,
     )
     if gaming_pre.cooldown_active:
         log.warning(
@@ -267,7 +268,7 @@ def submit_code(
         )
 
     # ── Step 5: Extract code features via AST ────────────────────────────────
-    features: dict = extract_features(body.code)
+    features: dict = extract_features(body.code).to_dict()
     error_type: str = features.get("error_type", "none")
 
     # ── Step 6: Call Brain A — structured feedback ───────────────────────────

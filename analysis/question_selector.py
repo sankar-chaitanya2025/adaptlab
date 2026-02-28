@@ -407,3 +407,41 @@ def select_next_problem(
             seen_ids=seen_ids,
             db=db,
         )
+
+
+# ─────────────────────────────────────────────
+# Convenience wrapper — used by routes_submit.py and routes_problems.py
+# ─────────────────────────────────────────────
+
+def get_next_problem(
+    student_id:       str,
+    concept:          str,
+    seen_problem_ids: list[str],
+    db:               Session,
+    difficulty_signal: str = "same",
+) -> Optional[SelectionResult]:
+    """
+    Wrapper around select_next_problem that:
+    1. Fetches the student's current capability score from DB
+    2. Uses a default difficulty_signal of 'same'
+    3. Returns SelectionResult (or None if no problem available)
+
+    This is the interface used by routes_submit.py and routes_problems.py.
+    """
+    from analysis.capability_engine import get_capability_score
+
+    student_score = get_capability_score(student_id, concept, db)
+
+    result = select_next_problem(
+        student_id=student_id,
+        concept=concept,
+        student_score=student_score,
+        difficulty_signal=difficulty_signal,
+        db=db,
+    )
+
+    # If problem_id is None, no suitable problem was found
+    if result.problem_id is None:
+        return None
+
+    return result
